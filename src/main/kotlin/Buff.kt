@@ -4,12 +4,15 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
 import java.time.LocalDateTime
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.logging.Logger
 
 class Buff<T> private constructor(private val name: String, initialData: T, private val reloadFunction: (T) -> T) {
     private var data = initialData
     private var needReload = AtomicBoolean(true)
     private var processing = AtomicBoolean(false)
     private var lastModified = LocalDateTime.now()
+    private val logger = Logger.getLogger(Buff.javaClass.name)
+
 
     init {
         mutableMapProcessing[name]!!.subscribeOn(Schedulers.newThread()).subscribe { processing = AtomicBoolean(it) }
@@ -34,17 +37,18 @@ class Buff<T> private constructor(private val name: String, initialData: T, priv
     fun clear() {
         waitRunningProcess()
         processingData {
+            logger.info("clear buffer $name")
             needReload = AtomicBoolean(true)
-            println("clear buffer $name")
         }
     }
 
     fun modify(modifiedData: T) {
         waitRunningProcess()
         processingData {
-            println("ubah data $name")
+            logger.info("modify data buffer $name")
             data = modifiedData
             lastModified = LocalDateTime.now()
+            needReload = AtomicBoolean(false)
         }
     }
 
@@ -52,7 +56,7 @@ class Buff<T> private constructor(private val name: String, initialData: T, priv
         if (needReload.get()) {
             if (!processing.get()) {
                 processingData {
-                    println("reload buffer $name")
+                    logger.info("reload buffer $name")
                     data = reloadFunction(data)
                     lastModified = LocalDateTime.now()
                     needReload = AtomicBoolean(false)
@@ -65,11 +69,9 @@ class Buff<T> private constructor(private val name: String, initialData: T, priv
     }
 
     companion object {
-        //PublishSubject<Boolean> subject = PublishSubject.create();
         private val mutableMapProcessing = mutableMapOf<String, PublishSubject<Boolean>>()
         private val mutableMapBuffer = mutableMapOf<String, Buff<*>>()
         fun <T> register(name: String, initialData: T, reloadFunction: (T) -> T) {
-
             mutableMapProcessing[name] = PublishSubject.create()
             mutableMapBuffer[name] = Buff(name, initialData, reloadFunction)
         }
