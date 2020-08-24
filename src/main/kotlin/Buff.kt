@@ -11,7 +11,7 @@ class Buff<T> private constructor(private val name: String, initialData: T, priv
     private var needReload = AtomicBoolean(true)
     private var processing = AtomicBoolean(false)
     private var lastModified = LocalDateTime.now()
-    private val logger = Logger.getLogger(Buff.javaClass.name)
+    private val logger = Logger.getLogger("Buff<$name>")
 
 
     init {
@@ -71,9 +71,11 @@ class Buff<T> private constructor(private val name: String, initialData: T, priv
     companion object {
         private val mutableMapProcessing = mutableMapOf<String, PublishSubject<Boolean>>()
         private val mutableMapBuffer = mutableMapOf<String, Buff<*>>()
-        fun <T> register(name: String, initialData: T, reloadFunction: (T) -> T) {
+        fun <T> register(name: String, initialData: T, reloadFunction: (T) -> T): Buff<T> {
             mutableMapProcessing[name] = PublishSubject.create()
             mutableMapBuffer[name] = Buff(name, initialData, reloadFunction)
+            @Suppress("UNCHECKED_CAST")
+            return mutableMapBuffer[name] as Buff<T>
         }
 
         fun <T> get(name: String): Buff<T> {
